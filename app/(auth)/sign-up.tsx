@@ -1,10 +1,13 @@
-import { Text } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ScrollView, Text,View } from "react-native";
+
 const SignUp = () => {
 return (
-    <SafeAreaView>
+    <ScrollView>
+        <View>
+             
+        </View>
         <Text>Sign-up</Text>
-    </SafeAreaView>
+    </ScrollView>
 );
 };
 
