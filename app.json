@@ -4,14 +4,13 @@
     "slug": "Ryde",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "splash":
       {
         "image": "./assets/images/splash.png",
         "resizeMode": "contain",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#2F80ED"
       },
     "newArchEnabled": true,
     "ios": {
