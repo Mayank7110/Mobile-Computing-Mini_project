@@ -29,19 +29,19 @@ const TabIcon = ({
 export default function Layout() {
   return (
     <Tabs
-      initialRouteName="index"
+      initialRouteName="home"
       screenOptions={{
         tabBarActiveTintColor: "white",
         tabBarInactiveTintColor: "white",
         tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: "#333333",
+          backgroundColor: "#29505d",
           borderRadius: 50,
-          paddingBottom: 0, // ios only
+          paddingBottom: 20, // ios only
           overflow: "hidden",
           marginHorizontal: 20,
           marginBottom: 20,
-          height: 78,
+          height: 50,
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
