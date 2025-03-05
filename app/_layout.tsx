@@ -1,34 +1,26 @@
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import 'react-native-reanimated';
+import { ClerkLoaded, ClerkProvider } from "@clerk/clerk-expo";
+import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+// import "react-native-reanimated";
+import { LogBox } from "react-native";
 
+import { tokenCache } from "@/lib/auth";
 import "../global.css";
-
-import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo'
-import { Slot } from 'expo-router'
-import { tokenCache } from '@/lib/auth'
-
-
-const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!
-
-
-
-function RootLayoutNav() {
-  return (
-    <ClerkProvider publishableKey={publishableKey}>
-      <ClerkLoaded>
-        <Slot />
-      </ClerkLoaded>
-    </ClerkProvider>
-  )
-}
-
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+
+if (!publishableKey) {
+  throw new Error(
+    "Missing Publishable Key. Please set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env",
+  );
+}
+
+LogBox.ignoreLogs(["Clerk:"]);
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -40,11 +32,7 @@ export default function RootLayout() {
     Jakarta: require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
     "Jakarta-SemiBold": require("../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
   });
-  if (!publishableKey) {
-    throw new Error(
-      'Missing Publishable Key. Please set EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in your .env',
-    )
-  }
+
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
