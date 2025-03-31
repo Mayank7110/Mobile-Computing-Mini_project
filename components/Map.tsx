@@ -1,177 +1,114 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
-import MapView, { Marker, PROVIDER_DEFAULT } from "react-native-maps";
-import MapViewDirections from "react-native-maps-directions";
+import { View, StyleSheet } from "react-native";
+import MapView, { Marker, Polyline } from "react-native-maps";
+import * as Location from "expo-location";
 
-import { icons } from "@/constants";
-import { useFetch } from "@/lib/fetch";
-import {
-  calculateDriverTimes,
-  calculateRegion,
-  generateMarkersFromData,
-} from "@/lib/map";
-import { useDriverStore, useLocationStore } from "@/store";
-import { Driver, MarkerData } from "@/types/type";
+const GOOGLE_MAPS_API_KEY = "AIzaSyCrlODzQIrmQ3vs7SxCRkGD1qrt4_XXsZ4";
 
-const directionsAPI = process.env.EXPO_PUBLIC_DIRECTIONS_API_KEY;
+const MapScreen = () => {
+  const [userLocation, setUserLocation] = useState<any>(null);
+  const [routeCoordinates, setRouteCoordinates] = useState<any>([]);
 
-const drivers = [
-    {
-        "id": "1",
-        "first_name": "James",
-        "last_name": "Wilson",
-        "profile_image_url": "https://ucarecdn.com/dae59f69-2c1f-48c3-a883-017bcf0f9950/-/preview/1000x666/",
-        "car_image_url": "https://ucarecdn.com/a2dc52b2-8bf7-4e49-9a36-3ffb5229ed02/-/preview/465x466/",
-        "car_seats": 4,
-        "rating": "4.80"
-    },
-    {
-        "id": "2",
-        "first_name": "David",
-        "last_name": "Brown",
-        "profile_image_url": "https://ucarecdn.com/6ea6d83d-ef1a-483f-9106-837a3a5b3f67/-/preview/1000x666/",
-        "car_image_url": "https://ucarecdn.com/a3872f80-c094-409c-82f8-c9ff38429327/-/preview/930x932/",
-        "car_seats": 5,
-        "rating": "4.60"
-    },
-    {
-        "id": "3",
-        "first_name": "Michael",
-        "last_name": "Johnson",
-        "profile_image_url": "https://ucarecdn.com/0330d85c-232e-4c30-bd04-e5e4d0e3d688/-/preview/826x822/",
-        "car_image_url": "https://ucarecdn.com/289764fb-55b6-4427-b1d1-f655987b4a14/-/preview/930x932/",
-        "car_seats": 4,
-        "rating": "4.70"
-    },
-    {
-        "id": "4",
-        "first_name": "Robert",
-        "last_name": "Green",
-        "profile_image_url": "https://ucarecdn.com/fdfc54df-9d24-40f7-b7d3-6f391561c0db/-/preview/626x417/",
-        "car_image_url": "https://ucarecdn.com/b6fb3b55-7676-4ff3-8484-fb115e268d32/-/preview/930x932/",
-        "car_seats": 4,
-        "rating": "4.90"
-    }
-]
-
-const Map = () => {
-  const {
-    userLongitude,
-    userLatitude,
-    destinationLatitude,
-    destinationLongitude,
-  } = useLocationStore();
-  const { selectedDriver, setDrivers } = useDriverStore();
-const loading = false;
-//   const { data: drivers, loading, error } = useFetch<Driver[]>("/(api)/driver");
-  const [markers, setMarkers] = useState<MarkerData[]>([]);
+  const destination = {
+    latitude: 37.7749, // Example: San Francisco
+    longitude: -122.4194,
+  };
 
   useEffect(() => {
-    if (Array.isArray(drivers)) {
-      if (!userLatitude || !userLongitude) return;
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        console.error("Permission to access location was denied");
+        return;
+      }
 
-      const newMarkers = generateMarkersFromData({
-        data: drivers,
-        userLatitude,
-        userLongitude,
+      let location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
       });
 
-      setMarkers(newMarkers);
+      fetchRoute(location.coords.latitude, location.coords.longitude);
+    })();
+  }, []);
+
+  const fetchRoute = async (lat: number, lng: number) => {
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${lat},${lng}&destination=${destination.latitude},${destination.longitude}&key=${GOOGLE_MAPS_API_KEY}`;
+    
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.routes.length) {
+        const points = data.routes[0].overview_polyline.points;
+        const decodedPoints = decodePolyline(points);
+        setRouteCoordinates(decodedPoints);
+      }
+    } catch (error) {
+      console.error("Error fetching route:", error);
     }
-  }, [drivers, userLatitude, userLongitude]);
+  };
 
-  useEffect(() => {
-    if (
-      markers.length > 0 &&
-      destinationLatitude !== undefined &&
-      destinationLongitude !== undefined
-    ) {
-      calculateDriverTimes({
-        markers,
-        userLatitude,
-        userLongitude,
-        destinationLatitude,
-        destinationLongitude,
-      }).then((drivers) => {
-        setDrivers(drivers as MarkerData[]);
-      });
+  const decodePolyline = (encoded: string) => {
+    let points = [];
+    let index = 0, len = encoded.length;
+    let lat = 0, lng = 0;
+
+    while (index < len) {
+      let b, shift = 0, result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      let dlat = (result & 1) ? ~(result >> 1) : (result >> 1);
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      let dlng = (result & 1) ? ~(result >> 1) : (result >> 1);
+      lng += dlng;
+
+      points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
     }
-  }, [markers, destinationLatitude, destinationLongitude]);
-
-  const region = calculateRegion({
-    userLatitude,
-    userLongitude,
-    destinationLatitude,
-    destinationLongitude,
-  });
-
-  if (loading || (!userLatitude && !userLongitude))
-    return (
-      <View className="flex justify-between items-center w-full">
-        <ActivityIndicator size="small" color="#000" />
-      </View>
-    );
-
-//   if (error)
-//     return (
-//       <View className="flex justify-between items-center w-full">
-//         <Text>Error: {error}</Text>
-//       </View>
-//     );
+    return points;
+  };
 
   return (
-    <MapView
-      provider={PROVIDER_DEFAULT}
-      className="w-full h-full rounded-2xl"
-      tintColor="black"
-      mapType="mutedStandard"
-      showsPointsOfInterest={false}
-      initialRegion={region}
-      showsUserLocation={true}
-      userInterfaceStyle="light"
-    >
-      {markers.map((marker, index) => (
-        <Marker
-          key={marker.id}
-          coordinate={{
-            latitude: marker.latitude,
-            longitude: marker.longitude,
-          }}
-          title={marker.title}
-          image={
-            selectedDriver === +marker.id ? icons.selectedMarker : icons.marker
-          }
-        />
-      ))}
-
-      {destinationLatitude && destinationLongitude && (
-        <>
-          <Marker
-            key="destination"
-            coordinate={{
-              latitude: destinationLatitude,
-              longitude: destinationLongitude,
-            }}
-            title="Destination"
-            image={icons.pin}
-          />
-          <MapViewDirections
-            origin={{
-              latitude: userLatitude!,
-              longitude: userLongitude!,
-            }}
-            destination={{
-              latitude: destinationLatitude,
-              longitude: destinationLongitude,
-            }}
-            apikey={directionsAPI!}
-            strokeColor="#0286FF"
-            strokeWidth={2}
-          />
-        </>
-      )}
-    </MapView>
+    <View style={styles.container}>
+      <MapView
+        style={styles.map}
+        initialRegion={{
+          latitude: userLocation?.latitude || 37.7749,
+          longitude: userLocation?.longitude || -122.4194,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        }}
+      >
+        {userLocation && (
+          <Marker coordinate={userLocation} title="Your Location" pinColor="blue" />
+        )}
+        <Marker coordinate={destination} title="Destination" pinColor="red" />
+        {routeCoordinates.length > 0 && (
+          <Polyline coordinates={routeCoordinates} strokeWidth={4} strokeColor="blue" />
+        )}
+      </MapView>
+    </View>
   );
 };
 
-export default Map;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  map: {
+    width: "100%",
+    height: "100%",
+  },
+});
+
+export default MapScreen;

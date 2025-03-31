@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
+    "permissions": ["location"],
     "splash":
       {
         "image": "./assets/images/splash.png",
@@ -20,6 +21,11 @@
       "bundler": "metro"
     },
     "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCrlODzQIrmQ3vs7SxCRkGD1qrt4_XXsZ4"
+        }
+      },
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
