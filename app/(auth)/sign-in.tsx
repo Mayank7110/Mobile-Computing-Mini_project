@@ -2,6 +2,7 @@ import { useSignIn } from "@clerk/clerk-expo";
 import { Link, router } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Image, ScrollView, Text, View } from "react-native";
+import * as LocalAuthentication from "expo-local-authentication";
 
 import CustomButton from "@/components/CustomButton";
 import InputField from "@/components/InputField";
@@ -16,6 +17,27 @@ const SignIn = () => {
     password: "",
   });
 
+  const authenticateBiometric = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    if (!hasHardware || !isEnrolled) {
+      Alert.alert("Biometric authentication not supported or not set up.");
+      return;
+    }
+
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Authenticate to continue",
+      fallbackLabel: "Use Passcode",
+    });
+
+    if (result.success) {
+      router.replace("/(root)/(tabs)/home");
+    } else {
+      Alert.alert("Authentication failed. Please try again.");
+    }
+  };
+
   const onSignInPress = useCallback(async () => {
     if (!isLoaded) return;
 
@@ -27,15 +49,14 @@ const SignIn = () => {
 
       if (signInAttempt.status === "complete") {
         await setActive({ session: signInAttempt.createdSessionId });
-        router.replace("/(root)/(tabs)/home");
+        authenticateBiometric();
       } else {
-        // See https://clerk.com/docs/custom-flows/error-handling for more info on error handling
         console.log(JSON.stringify(signInAttempt, null, 2));
         Alert.alert("Error", "Log in failed. Please try again.");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.log(JSON.stringify(err, null, 2));
-      Alert.alert("Error", err.errors[0].longMessage);
+      Alert.alert("Error", err.errors[0]?.longMessage || "An error occurred.");
     }
   }, [isLoaded, form]);
 

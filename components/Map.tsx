@@ -1,100 +1,79 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { View, StyleSheet } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
+import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyCrlODzQIrmQ3vs7SxCRkGD1qrt4_XXsZ4";
-
-const MapScreen = () => {
+const Map = ({ onSelectDestination }: { onSelectDestination: Function }) => {
   const [userLocation, setUserLocation] = useState<any>(null);
-  const [routeCoordinates, setRouteCoordinates] = useState<any>([]);
-
-  const destination = {
-    latitude: 37.7749, // Example: San Francisco
-    longitude: -122.4194,
-  };
+  const [destination, setDestination] = useState<any>(null);
+  const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        console.error("Permission to access location was denied");
-        return;
-      }
+      if (status !== "granted") return;
 
       let location = await Location.getCurrentPositionAsync({});
       setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
-
-      fetchRoute(location.coords.latitude, location.coords.longitude);
     })();
   }, []);
 
-  const fetchRoute = async (lat: number, lng: number) => {
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${lat},${lng}&destination=${destination.latitude},${destination.longitude}&key=${GOOGLE_MAPS_API_KEY}`;
-    
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.routes.length) {
-        const points = data.routes[0].overview_polyline.points;
-        const decodedPoints = decodePolyline(points);
-        setRouteCoordinates(decodedPoints);
-      }
-    } catch (error) {
-      console.error("Error fetching route:", error);
-    }
+  const handleMapPress = async (e: any) => {
+    const { latitude, longitude } = e.nativeEvent.coordinate;
+
+    const addressData = await Location.reverseGeocodeAsync({ latitude, longitude });
+    const address = `${addressData[0]?.name}, ${addressData[0]?.region}`;
+
+    setDestination({ latitude, longitude, address });
+
+    onSelectDestination({ latitude, longitude, address });
   };
 
-  const decodePolyline = (encoded: string) => {
-    let points = [];
-    let index = 0, len = encoded.length;
-    let lat = 0, lng = 0;
-
-    while (index < len) {
-      let b, shift = 0, result = 0;
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      let dlat = (result & 1) ? ~(result >> 1) : (result >> 1);
-      lat += dlat;
-
-      shift = 0;
-      result = 0;
-      do {
-        b = encoded.charCodeAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      let dlng = (result & 1) ? ~(result >> 1) : (result >> 1);
-      lng += dlng;
-
-      points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
+  useEffect(() => {
+    if (userLocation && destination && mapRef.current) {
+      mapRef.current.fitToSuppliedMarkers(["currentLocation", "destination"], {
+        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
+      });
     }
-    return points;
-  };
+  }, [userLocation, destination]);
 
   return (
     <View style={styles.container}>
       <MapView
+        ref={mapRef}
         style={styles.map}
-        initialRegion={{
-          latitude: userLocation?.latitude || 37.7749,
-          longitude: userLocation?.longitude || -122.4194,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }}
+        initialRegion={
+          userLocation
+            ? {
+                latitude: userLocation.latitude,
+                longitude: userLocation.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }
+            : undefined
+        }
+        showsUserLocation={true}
+        showsMyLocationButton={true}
+        onPress={handleMapPress}
       >
         {userLocation && (
-          <Marker coordinate={userLocation} title="Your Location" pinColor="blue" />
+          <Marker
+            coordinate={userLocation}
+            title="You are here"
+            pinColor="blue"
+            identifier="currentLocation"
+          />
         )}
-        <Marker coordinate={destination} title="Destination" pinColor="red" />
-        {routeCoordinates.length > 0 && (
-          <Polyline coordinates={routeCoordinates} strokeWidth={4} strokeColor="blue" />
+        {destination && (
+          <Marker
+            coordinate={destination}
+            title="Destination"
+            pinColor="red"
+            identifier="destination"
+          />
         )}
       </MapView>
     </View>
@@ -111,4 +90,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MapScreen;
+export default Map;
